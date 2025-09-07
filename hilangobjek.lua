@@ -1,142 +1,113 @@
 -- Anti duplicate
-if getgenv().NazamHubLoaded then return end
-getgenv().NazamHubLoaded = true
+if getgenv().NazamAutoWalkLoaded then return end
+getgenv().NazamAutoWalkLoaded = true
 
 -- Services
 local Players = game:GetService("Players")
+local PathfindingService = game:GetService("PathfindingService")
 local Workspace = game:GetService("Workspace")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage") -- buat RemoteEvent
 
--- Player
+-- Player setup
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- Simpan objek yang dihapus
-local deletedObjects = {}
+-- Config
+local jumpHeight = 50
+local delayOnObstacle = 0.5
 
--- Buat RemoteEvent jika belum ada
-local deleteEvent = ReplicatedStorage:FindFirstChild("DeleteObjectEvent") or Instance.new("RemoteEvent")
-deleteEvent.Name = "DeleteObjectEvent"
-deleteEvent.Parent = ReplicatedStorage
+-- Collect POS parts dynamically
+local checkpoints = {}
+for _, obj in ipairs(Workspace:GetDescendants()) do
+    if obj:IsA("BasePart") and obj.Name:match("^POS%d+$") then
+        table.insert(checkpoints, obj)
+    end
+end
 
-local restoreEvent = ReplicatedStorage:FindFirstChild("RestoreObjectEvent") or Instance.new("RemoteEvent")
-restoreEvent.Name = "RestoreObjectEvent"
-restoreEvent.Parent = ReplicatedStorage
+table.sort(checkpoints, function(a,b)
+    return tonumber(a.Name:match("%d+")) < tonumber(b.Name:match("%d+"))
+end)
 
---=====================
+-- Determine current checkpoint index
+local currentCheckpointIndex = 1
+
+--=====================--
 -- GUI Setup
---=====================
+--=====================--
 local gui = Instance.new("ScreenGui")
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
--- Function tween
-local function tweenTransparency(obj, target, time)
-    local tween = TweenService:Create(obj, TweenInfo.new(time, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {TextTransparency = target})
-    tween:Play()
-    tween.Completed:Wait()
-end
-
---===== Tampilan Pertama =====
-local openBtn = Instance.new("TextButton", gui)
-openBtn.Size = UDim2.new(0,120,0,50)
-openBtn.Position = UDim2.new(0.5,-60,0.5,-25)
-openBtn.Text = "OPEN"
-openBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-openBtn.TextColor3 = Color3.fromRGB(255,255,255)
-openBtn.Font = Enum.Font.GothamBold
-openBtn.TextScaled = true
-Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0,10)
-Instance.new("UIStroke", openBtn).Color = Color3.fromRGB(0,200,255)
-
---===== Tampilan Kedua =====
 local menuFrame = Instance.new("Frame", gui)
-menuFrame.Size = UDim2.new(0,250,0,150)
-menuFrame.Position = UDim2.new(0.5,-125,0.5,-75)
+menuFrame.Size = UDim2.new(0, 300, 0, 400)
+menuFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
 menuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-menuFrame.Visible = false
+menuFrame.Visible = true
 Instance.new("UICorner", menuFrame).CornerRadius = UDim.new(0,12)
-local frameStroke = Instance.new("UIStroke", menuFrame)
-frameStroke.Color = Color3.fromRGB(0,200,255)
+local menuStroke = Instance.new("UIStroke", menuFrame)
+menuStroke.Color = Color3.fromRGB(0,200,255)
+menuStroke.Thickness = 2
 
--- Label
 local titleLabel = Instance.new("TextLabel", menuFrame)
-titleLabel.Size = UDim2.new(1,0,0,30)
+titleLabel.Size = UDim2.new(1,0,0,50)
 titleLabel.Position = UDim2.new(0,0,0,0)
-titleLabel.BackgroundTransparency = 1
-titleLabel.Text = "By Nazam"
+titleLabel.Text = "Auto Walk POS 1-26"
 titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextScaled = true
+titleLabel.BackgroundTransparency = 1
 
--- Tombol DELETE OBJEK
-local deleteBtn = Instance.new("TextButton", menuFrame)
-deleteBtn.Size = UDim2.new(0.8,0,0,40)
-deleteBtn.Position = UDim2.new(0.1,0,0.35,0)
-deleteBtn.Text = "DELETE OBJEK"
-deleteBtn.Font = Enum.Font.GothamBold
-deleteBtn.TextScaled = true
-deleteBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
-deleteBtn.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", deleteBtn).CornerRadius = UDim.new(0,8)
+-- Container for buttons
+local btnStartY = 60
+for i = 1, #checkpoints-1 do
+    local btn = Instance.new("TextButton", menuFrame)
+    btn.Size = UDim2.new(0.8,0,0,40)
+    btn.Position = UDim2.new(0.1,0,0, btnStartY)
+    btnStartY = btnStartY + 50
+    btn.Text = checkpoints[i].Name.." → "..checkpoints[i+1].Name
+    btn.Font = Enum.Font.GothamBold
+    btn.TextScaled = true
+    btn.BackgroundColor3 = Color3.fromRGB(0,200,255)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
 
--- Tombol BACK OBJEK
-local backBtn = Instance.new("TextButton", menuFrame)
-backBtn.Size = UDim2.new(0.8,0,0,40)
-backBtn.Position = UDim2.new(0.1,0,0.65,0)
-backBtn.Text = "BACK OBJEK"
-backBtn.Font = Enum.Font.GothamBold
-backBtn.TextScaled = true
-backBtn.BackgroundColor3 = Color3.fromRGB(50,200,50)
-backBtn.TextColor3 = Color3.fromRGB(255,255,255)
-Instance.new("UICorner", backBtn).CornerRadius = UDim.new(0,8)
+    btn.MouseButton1Click:Connect(function()
+        local startIndex = i
+        local endIndex = i+1
+        if startIndex ~= currentCheckpointIndex then
+            warn("Tidak bisa mulai dari checkpoint ini. Harus sesuai urutan!")
+            return
+        end
 
--- Dragging
-menuFrame.Active = true
-menuFrame.Draggable = true
+        -- Auto walk function
+        local function moveToTarget(targetPosition)
+            local path = PathfindingService:CreatePath({
+                AgentRadius = 2,
+                AgentHeight = 5,
+                AgentCanJump = true,
+                AgentJumpHeight = jumpHeight,
+                AgentMaxSlope = 45
+            })
+            path:ComputeAsync(rootPart.Position, targetPosition)
+            for _, wp in ipairs(path:GetWaypoints()) do
+                humanoid:MoveTo(wp.Position)
+                if wp.Action == Enum.PathWaypointAction.Jump then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+                humanoid.MoveToFinished:Wait()
+            end
+        end
 
---=====================
--- Button Logic
---=====================
-openBtn.MouseButton1Click:Connect(function()
-    menuFrame.Visible = not menuFrame.Visible
-end)
+        -- Walk through checkpoints
+        for idx = startIndex, endIndex do
+            local cp = checkpoints[idx]
+            moveToTarget(cp.Position)
+            currentCheckpointIndex = idx + 1
+        end
 
-deleteBtn.MouseButton1Click:Connect(function()
-    -- Cek objek depan player
-    local ray = Ray.new(hrp.Position, hrp.CFrame.LookVector*10)
-    local part, pos = Workspace:FindPartOnRay(ray, character)
-    if part then
-        table.insert(deletedObjects, {Parent=part.Parent, Part=part})
-        part:Destroy()
-        -- Notify ke semua client
-        deleteEvent:FireAllClients(part)
-    end
-end)
-
-backBtn.MouseButton1Click:Connect(function()
-    if #deletedObjects > 0 then
-        local last = table.remove(deletedObjects)
-        last.Part.Parent = last.Parent
-        -- Notify ke semua client
-        restoreEvent:FireAllClients(last.Part)
-    end
-end)
-
---=====================
--- RemoteEvent Client
---=====================
-deleteEvent.OnClientEvent:Connect(function(part)
-    if part and part.Parent then
-        part:Destroy()
-    end
-end)
-
-restoreEvent.OnClientEvent:Connect(function(part)
-    if part and part.Parent == nil then
-        part.Parent = Workspace
-    end
-end)
+        print("Sampai tujuan! Klik tombol selanjutnya untuk lanjut.")
+    end)
+end
