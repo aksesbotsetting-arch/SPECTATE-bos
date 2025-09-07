@@ -1,124 +1,188 @@
 -- Anti duplicate
-if getgenv().SpectateHubLoaded then return end
-getgenv().SpectateHubLoaded = true
+if getgenv().SpecHubLoaded then return end
+getgenv().SpecHubLoaded = true
 
 -- Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
 
 -- Player setup
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local camera = Workspace.CurrentCamera
 
---=====================--
--- GUI Setup
---=====================--
+-- GUI
 local gui = Instance.new("ScreenGui")
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
-local function createButton(parent, text, position, size)
-    local btn = Instance.new("TextButton", parent)
-    btn.Size = size or UDim2.new(0,100,0,40)
-    btn.Position = position
-    btn.Text = text
-    btn.Font = Enum.Font.GothamBold
-    btn.TextScaled = true
-    btn.BackgroundColor3 = Color3.fromRGB(0,200,255)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
-    return btn
-end
+--=====================
+-- Start/Toggle Button
+--=====================
+local startBtn = Instance.new("TextButton", gui)
+startBtn.Size = UDim2.new(0,80,0,40)
+startBtn.Position = UDim2.new(0.5,-40,0.5,-20)
+startBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
+startBtn.Text = "Start Spectate"
+startBtn.TextColor3 = Color3.fromRGB(255,255,255)
+startBtn.TextScaled = true
+startBtn.Font = Enum.Font.GothamBold
+startBtn.AutoButtonColor = true
+Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0,6)
+Instance.new("UIStroke", startBtn).Color = Color3.fromRGB(255,255,255)
 
--- Main Frame
-local mainFrame = Instance.new("Frame", gui)
-mainFrame.Size = UDim2.new(0,300,0,150)
-mainFrame.Position = UDim2.new(0.5,-150,0.5,-75)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-mainFrame.Active = true
-mainFrame.Draggable = true
-Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,12)
+-- Dragging
+startBtn.Active = true
+startBtn.Draggable = true
 
--- Close Button
-local closeBtn = createButton(mainFrame, "X", UDim2.new(1,-35,0,5), UDim2.new(0,30,0,30))
-closeBtn.BackgroundColor3 = Color3.fromRGB(200,0,0)
-closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-closeBtn.MouseButton1Click:Connect(function()
-    gui.Enabled = false
-end)
+-- Spectate GUI Frame
+local specFrame = Instance.new("Frame", gui)
+specFrame.Size = UDim2.new(0,250,0,120)
+specFrame.Position = UDim2.new(0.5,-125,0.8,0)
+specFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+specFrame.Visible = false
+Instance.new("UICorner", specFrame).CornerRadius = UDim.new(0,12)
+local frameStroke = Instance.new("UIStroke", specFrame)
+frameStroke.Color = Color3.fromRGB(0,200,255)
 
--- Target label
-local targetLabel = Instance.new("TextLabel", mainFrame)
+-- Label Target
+local targetLabel = Instance.new("TextLabel", specFrame)
 targetLabel.Size = UDim2.new(1,0,0,40)
-targetLabel.Position = UDim2.new(0,0,0.1,0)
+targetLabel.Position = UDim2.new(0,0,0,0)
 targetLabel.BackgroundTransparency = 1
 targetLabel.TextColor3 = Color3.fromRGB(255,255,255)
 targetLabel.Font = Enum.Font.GothamBold
 targetLabel.TextScaled = true
-targetLabel.Text = "Target: None"
+targetLabel.Text = "Target: -"
 
--- Navigation buttons
-local prevBtn = createButton(mainFrame, "<", UDim2.new(0.1,0,0.5,0))
-local nextBtn = createButton(mainFrame, ">", UDim2.new(0.8,0,0.5,0))
+-- Buttons Prev / Next
+local prevBtn = Instance.new("TextButton", specFrame)
+prevBtn.Size = UDim2.new(0.3,0,0,40)
+prevBtn.Position = UDim2.new(0.05,0,0.5,0)
+prevBtn.Text = "<"
+prevBtn.Font = Enum.Font.GothamBold
+prevBtn.TextScaled = true
+prevBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
+prevBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", prevBtn).CornerRadius = UDim.new(0,6)
 
--- Teleport button
-local tpBtn = createButton(mainFrame, "Teleport To Target", UDim2.new(0.3,0,0.75,0), UDim2.new(0.4,0,0,40))
+local nextBtn = Instance.new("TextButton", specFrame)
+nextBtn.Size = UDim2.new(0.3,0,0,40)
+nextBtn.Position = UDim2.new(0.65,0,0.5,0)
+nextBtn.Text = ">"
+nextBtn.Font = Enum.Font.GothamBold
+nextBtn.TextScaled = true
+nextBtn.BackgroundColor3 = Color3.fromRGB(0,200,255)
+nextBtn.TextColor3 = Color3.fromRGB(255,255,255)
+Instance.new("UICorner", nextBtn).CornerRadius = UDim.new(0,6)
 
---=====================--
+-- Teleport Button
+local tpBtn = Instance.new("TextButton", specFrame)
+tpBtn.Size = UDim2.new(0.9,0,0,30)
+tpBtn.Position = UDim2.new(0.05,0,0.75,0)
+tpBtn.Text = "Teleport to Target"
+tpBtn.Font = Enum.Font.GothamBold
+tpBtn.TextScaled = true
+tpBtn.BackgroundColor3 = Color3.fromRGB(0,255,100)
+tpBtn.TextColor3 = Color3.fromRGB(0,0,0)
+Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0,6)
+
+--=====================
 -- Spectate Logic
---=====================--
-local targetIndex = 1
-local targetPlayer = nil
-local allPlayers = {}
-
-local function updatePlayerList()
-    allPlayers = {}
+--=====================
+local function getPlayersList()
+    local list = {}
     for _, p in ipairs(Players:GetPlayers()) do
-        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            table.insert(allPlayers, p)
+        if p ~= player then
+            table.insert(list, p)
         end
     end
+    return list
 end
 
-local function updateTarget(index)
-    updatePlayerList()
-    if #allPlayers == 0 then
-        targetPlayer = nil
-        targetLabel.Text = "Target: None"
+local targetIndex = 1
+local currentTarget = nil
+local cameraConnection = nil
+local spectating = false
+
+local function updateTarget()
+    local list = getPlayersList()
+    if #list == 0 then
+        targetLabel.Text = "Target: -"
+        currentTarget = nil
         return
     end
-    if index < 1 then index = #allPlayers end
-    if index > #allPlayers then index = 1 end
-    targetIndex = index
-    targetPlayer = allPlayers[targetIndex]
-    targetLabel.Text = "Target: " .. targetPlayer.Name
+    if targetIndex > #list then targetIndex = 1 end
+    if targetIndex < 1 then targetIndex = #list end
+    currentTarget = list[targetIndex]
+    targetLabel.Text = "Target: "..currentTarget.Name
 end
 
--- Camera follow
-RunService.RenderStepped:Connect(function()
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local cam = workspace.CurrentCamera
-        local targetPos = targetPlayer.Character.HumanoidRootPart.Position
-        cam.CFrame = CFrame.new(targetPos + Vector3.new(0,5,10), targetPos)
+local function startSpectate()
+    if spectating then return end
+    spectating = true
+    updateTarget()
+    camera.CameraType = Enum.CameraType.Scriptable
+
+    cameraConnection = RunService.RenderStepped:Connect(function()
+        if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = currentTarget.Character.HumanoidRootPart
+            camera.CFrame = CFrame.new(hrp.Position + Vector3.new(0,5,10), hrp.Position)
+        end
+    end)
+end
+
+local function stopSpectate()
+    if not spectating then return end
+    spectating = false
+    if cameraConnection then
+        cameraConnection:Disconnect()
+        cameraConnection = nil
+    end
+    camera.CameraType = Enum.CameraType.Custom
+end
+
+--=====================
+-- Button Connections
+--=====================
+startBtn.MouseButton1Click:Connect(function()
+    if not spectating then
+        startSpectate()
+        startBtn.Text = "Stop Spectate"
+        specFrame.Visible = true
+    else
+        stopSpectate()
+        startBtn.Text = "Start Spectate"
+        specFrame.Visible = false
     end
 end)
 
--- Button actions
 prevBtn.MouseButton1Click:Connect(function()
-    updateTarget(targetIndex - 1)
+    targetIndex = targetIndex - 1
+    updateTarget()
 end)
 
 nextBtn.MouseButton1Click:Connect(function()
-    updateTarget(targetIndex + 1)
+    targetIndex = targetIndex + 1
+    updateTarget()
 end)
 
 tpBtn.MouseButton1Click:Connect(function()
-    if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        rootPart.CFrame = targetPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+    if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = currentTarget.Character.HumanoidRootPart
+        player.Character:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0,3,0))
+        stopSpectate() -- kamera kembali ke normal
+        startBtn.Text = "Start Spectate"
+        specFrame.Visible = false
     end
 end)
 
--- Initial target
-updateTarget(1)
+-- Cleanup jika respawn
+player.CharacterAdded:Connect(function()
+    stopSpectate()
+    startBtn.Text = "Start Spectate"
+    startBtn.Visible = true
+    specFrame.Visible = false
+end)
