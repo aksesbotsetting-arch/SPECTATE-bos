@@ -1,3 +1,4 @@
+
 -- Anti duplicate
 if getgenv().SpecHubLoaded then return end
 getgenv().SpecHubLoaded = true
@@ -18,9 +19,7 @@ local gui = Instance.new("ScreenGui")
 gui.ResetOnSpawn = false
 gui.Parent = player:WaitForChild("PlayerGui")
 
---=====================
 -- Start/Toggle Button
---=====================
 local startBtn = Instance.new("TextButton", gui)
 startBtn.Size = UDim2.new(0,80,0,40)
 startBtn.Position = UDim2.new(0.5,-40,0.5,-20)
@@ -29,18 +28,16 @@ startBtn.Text = "Start Spectate"
 startBtn.TextColor3 = Color3.fromRGB(255,255,255)
 startBtn.TextScaled = true
 startBtn.Font = Enum.Font.GothamBold
-startBtn.AutoButtonColor = true
 Instance.new("UICorner", startBtn).CornerRadius = UDim.new(0,6)
 Instance.new("UIStroke", startBtn).Color = Color3.fromRGB(255,255,255)
-
--- Dragging
 startBtn.Active = true
 startBtn.Draggable = true
 
 -- Spectate GUI Frame
+local frameWidth, frameHeight = 250, 120
 local specFrame = Instance.new("Frame", gui)
-specFrame.Size = UDim2.new(0,250,0,120)
-specFrame.Position = UDim2.new(0.5,-125,0.8,0)
+specFrame.Size = UDim2.new(0, frameWidth, 0, frameHeight)
+specFrame.Position = UDim2.new(0.5, -frameWidth/2, 0.5, -frameHeight/2) -- tengah layar
 specFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 specFrame.Visible = false
 Instance.new("UICorner", specFrame).CornerRadius = UDim.new(0,12)
@@ -89,9 +86,7 @@ tpBtn.BackgroundColor3 = Color3.fromRGB(0,255,100)
 tpBtn.TextColor3 = Color3.fromRGB(0,0,0)
 Instance.new("UICorner", tpBtn).CornerRadius = UDim.new(0,6)
 
---=====================
 -- Spectate Logic
---=====================
 local function getPlayersList()
     local list = {}
     for _, p in ipairs(Players:GetPlayers()) do
@@ -144,9 +139,7 @@ local function stopSpectate()
     camera.CameraType = Enum.CameraType.Custom
 end
 
---=====================
 -- Button Connections
---=====================
 startBtn.MouseButton1Click:Connect(function()
     if not spectating then
         startSpectate()
@@ -173,7 +166,7 @@ tpBtn.MouseButton1Click:Connect(function()
     if currentTarget and currentTarget.Character and currentTarget.Character:FindFirstChild("HumanoidRootPart") then
         local hrp = currentTarget.Character.HumanoidRootPart
         player.Character:SetPrimaryPartCFrame(hrp.CFrame + Vector3.new(0,3,0))
-        stopSpectate() -- kamera kembali ke normal
+        stopSpectate() -- kamera kembali normal
         startBtn.Text = "Start Spectate"
         specFrame.Visible = false
     end
@@ -186,3 +179,4 @@ player.CharacterAdded:Connect(function()
     startBtn.Visible = true
     specFrame.Visible = false
 end)
+
